@@ -1,0 +1,19 @@
+# Core dependencies for building AI agents
+openai>=1.0.0
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+requests>=2.31.0
+
+# For knowledge base (Phase 2)
+sentence-transformers>=2.2.0
+faiss-cpu>=1.7.4
+numpy>=1.21.0
+
+# For web interface
+streamlit>=1.28.0
+PyPDF2>=3.0.0
+python-docx>=0.8.11
+
+# For Google integration (Phase 3)
+# google-api-python-client>=2.0.0
+# google-auth>=2.0.0
