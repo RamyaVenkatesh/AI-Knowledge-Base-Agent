@@ -9,6 +9,10 @@ venv/
 agent-env/
 ENV/
 
+# Sensitive files
+credentials.json
+token.pickle
+
 # Project specific
 .env
 knowledge.db

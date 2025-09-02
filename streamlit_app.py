@@ -2,7 +2,7 @@ import streamlit as st
 import os
 from pathlib import Path
 import io
-from knowledge_agent import KnowledgeBaseAgent
+from enhanced_agent import EnhancedKnowledgeAgent, add_sample_job_descriptions
 
 # Optional imports for document processing
 try:
@@ -28,7 +28,12 @@ st.set_page_config(
 
 # Initialize session state
 if 'agent' not in st.session_state:
-    st.session_state.agent = KnowledgeBaseAgent()
+    st.session_state.agent = EnhancedKnowledgeAgent()
+    # Add sample job descriptions for testing
+    try:
+        add_sample_job_descriptions(st.session_state.agent)
+    except:
+        pass  # Ignore if already added
     
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
@@ -58,8 +63,8 @@ def extract_text_from_uploaded_file(uploaded_file):
 
 # Main App
 def main():
-    st.title("🤖 AI Knowledge Base Agent")
-    st.markdown("Chat with your company's knowledge base powered by local AI!")
+    st.title("🤖 AI Knowledge Base Agent with Calendar Integration")
+    st.markdown("Chat with your company's knowledge base and analyze interview candidates!")
     
     # Sidebar for navigation
     with st.sidebar:
@@ -80,6 +85,23 @@ def main():
         except:
             st.error("❌ Ollama not running. Start with `ollama serve`")
         
+        # Google Calendar status
+        if st.session_state.agent.calendar_service:
+            st.success("✅ Google Calendar connected")
+        else:
+            st.warning("⚠️ Google Calendar not connected")
+            with st.expander("📋 Setup Instructions"):
+                st.markdown("""
+                **Quick Setup:**
+                1. Add `credentials.json` to project folder
+                2. Restart app for authentication
+                
+                **Detailed Setup:**
+                - [Google Cloud Console](https://console.cloud.google.com/)
+                - Enable Calendar API
+                - Create Desktop OAuth credentials
+                """)
+        
         # Knowledge base stats
         try:
             import sqlite3
@@ -97,7 +119,12 @@ def main():
 
     # Chat Page
     if page == "💬 Chat":
-        st.header("💬 Chat with Your Knowledge Base")
+        st.header("💬 Chat Interface")
+        st.markdown("**Available Commands:**")
+        st.markdown("📅 *Interviews:* 'What interviews do I have this week?', 'Show my calendar for tomorrow'")  
+        st.markdown("🎯 *Analysis:* 'Analyze John Smith for the Python developer role'")
+        st.markdown("📚 *Knowledge:* 'What's our vacation policy?', 'What technologies do we use?'")
+        st.markdown("---")
         
         # Create a container for the chat messages with fixed height
         chat_container = st.container()
@@ -148,8 +175,6 @@ def main():
                                     border: 1px solid #ddd;
                                 ">
                                     <strong>🤖 Agent:</strong> {message}
-                                </div>
-                            </div>
                             """, 
                             unsafe_allow_html=True
                         )
@@ -163,8 +188,8 @@ def main():
                         color: #666;
                         font-style: italic;
                     ">
-                        👋 Welcome! I'm your AI knowledge base assistant.<br>
-                        Ask me anything about your company documents.
+                        👋 Welcome! I'm your AI assistant with calendar integration.<br>
+                        Ask me about company documents, upcoming interviews, or candidate analysis.
                     </div>
                     """, 
                     unsafe_allow_html=True
@@ -178,19 +203,19 @@ def main():
             col1, col2 = st.columns(2)
             
             with col1:
-                if st.button("📋 What's our remote work policy?", use_container_width=True):
+                if st.button("📋 What's our remote work policy?", use_container_width=True, key="chat_q1"):
                     st.session_state.example_query = "What's our remote work policy?"
                     st.rerun()
-                if st.button("💰 What are our pricing plans?", use_container_width=True):
-                    st.session_state.example_query = "What are our pricing plans?"
+                if st.button("📅 What interviews do I have this week?", use_container_width=True, key="chat_q2"):
+                    st.session_state.example_query = "What interviews do I have lined up for this week?"
                     st.rerun()
             
             with col2:
-                if st.button("🛠️ What technologies do we use?", use_container_width=True):
+                if st.button("🛠️ What technologies do we use?", use_container_width=True, key="chat_q3"):
                     st.session_state.example_query = "What technologies do we use for backend development?"
                     st.rerun()
-                if st.button("🏖️ How many vacation days do we get?", use_container_width=True):
-                    st.session_state.example_query = "How many vacation days do employees get?"
+                if st.button("🎯 Analyze John Smith for Python role", use_container_width=True, key="chat_q4"):
+                    st.session_state.example_query = "Analyze candidate John Smith for the Senior Python Developer role"
                     st.rerun()
         
         # Fixed input area at the bottom
@@ -203,7 +228,7 @@ def main():
             with col1:
                 user_input = st.text_input(
                     "Message",
-                    placeholder="Ask me anything about your company...",
+                    placeholder="Ask about company docs, interviews, or candidate analysis...",
                     label_visibility="collapsed"
                 )
             
@@ -215,10 +240,13 @@ def main():
             # Add user message to history
             st.session_state.chat_history.append(("user", user_input.strip()))
             
-            # Get agent response
+            # Get agent response with chat history context
             with st.spinner("🤖 Thinking..."):
                 try:
-                    response = st.session_state.agent.chat(user_input.strip())
+                    response = st.session_state.agent.chat(
+                        user_input.strip(), 
+                        st.session_state.chat_history[:-1]  # Pass history excluding current message
+                    )
                     st.session_state.chat_history.append(("agent", response))
                 except Exception as e:
                     error_msg = f"Sorry, I encountered an error: {str(e)}"
@@ -236,7 +264,10 @@ def main():
             st.session_state.chat_history.append(("user", query_to_process))
             with st.spinner("🤖 Thinking..."):
                 try:
-                    response = st.session_state.agent.chat(query_to_process)
+                    response = st.session_state.agent.chat(
+                        query_to_process, 
+                        st.session_state.chat_history[:-1]  # Pass history excluding current message
+                    )
                     st.session_state.chat_history.append(("agent", response))
                 except Exception as e:
                     error_msg = f"Sorry, I encountered an error: {str(e)}"
@@ -331,7 +362,7 @@ def main():
                 for doc in documents:
                     title, source, chunk_count, created_at = doc
                     
-                    with st.expander(f" {title}"):
+                    with st.expander(f"📄 {title}"):
                         col1, col2, col3 = st.columns(3)
                         with col1:
                             st.markdown(f"**Source:** {source}")

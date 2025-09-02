@@ -15,5 +15,8 @@ PyPDF2>=3.0.0
 python-docx>=0.8.11
 
 # For Google integration (Phase 3)
-# google-api-python-client>=2.0.0
-# google-auth>=2.0.0
+google-api-python-client>=2.0.0
+google-auth>=2.0.0
+google-auth-oauthlib>=2.0.0
+google-auth-httplib2>=0.1.0
+google-drive>=0.4.0
